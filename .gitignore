@@ -1,0 +1,5 @@
+/dllmock/Debug
+/dllmock/Release
+/dllmock/*.user
+/dllmock/.vs
+/dllmock/*.sln
