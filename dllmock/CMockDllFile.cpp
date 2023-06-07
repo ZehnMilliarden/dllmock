@@ -8,6 +8,15 @@
 
 #pragma comment(lib, "Dbghelp.lib")
 
+
+#ifdef _WIN64
+typedef DWORD_PTR DWORD_PTR_T;
+typedef ULONGLONG ULONGLONG_T;
+#else
+typedef DWORD DWORD_PTR_T;
+typedef DWORD ULONGLONG_T;
+#endif
+
 CMockDllFile::CMockDllFile()
 {
 
@@ -82,14 +91,14 @@ bool CMockDllFile::GetDLLFileExports()
         }
 
         lpFileBase = ::MapViewOfFile(hFileMapping, FILE_MAP_READ, 0, 0, 0);
-        if (lpFileBase == 0)
+        if (!lpFileBase)
         {
             break;
         }
 
         pImg_DOS_Header = (PIMAGE_DOS_HEADER)lpFileBase;
         pImg_NT_Header = (PIMAGE_NT_HEADERS)(
-            (LONG)pImg_DOS_Header + (LONG)pImg_DOS_Header->e_lfanew);
+            (ULONGLONG_T)pImg_DOS_Header + (ULONGLONG_T)pImg_DOS_Header->e_lfanew);
 
         if (::IsBadReadPtr(pImg_NT_Header, sizeof(IMAGE_NT_HEADERS))
             || pImg_NT_Header->Signature != IMAGE_NT_SIGNATURE)
@@ -105,12 +114,12 @@ bool CMockDllFile::GetDLLFileExports()
         }
 
         pImg_Export_Dir = (PIMAGE_EXPORT_DIRECTORY)::ImageRvaToVa(pImg_NT_Header,
-            pImg_DOS_Header, (DWORD)pImg_Export_Dir, 0);
+            pImg_DOS_Header, (ULONGLONG_T)pImg_Export_Dir, 0);
 
-        DWORD** ppdwNames = (DWORD**)pImg_Export_Dir->AddressOfNames;
+        DWORD_PTR_T** ppdwNames = (DWORD_PTR_T**)pImg_Export_Dir->AddressOfNames;
 
-        ppdwNames = (PDWORD*)::ImageRvaToVa(pImg_NT_Header,
-            pImg_DOS_Header, (DWORD)ppdwNames, 0);
+        ppdwNames = (PDWORD_PTR*)::ImageRvaToVa(pImg_NT_Header,
+            pImg_DOS_Header, (ULONGLONG_T)ppdwNames, 0);
         if (!ppdwNames)
         {
             break;
@@ -125,9 +134,9 @@ bool CMockDllFile::GetDLLFileExports()
             char* szFunc = (PSTR)::ImageRvaToVa(pImg_NT_Header, pImg_DOS_Header, (DWORD)*ppdwNames, 0);
             if (szFunc)
             {
-                m_lstFuncName.push_back( std::make_shared<CMockFunc>(szFunc) );
+                m_lstFuncName.push_back(std::make_shared<CMockFunc>(szFunc));
             }
-            ppdwNames++;
+            ppdwNames = (PDWORD_PTR *)(((ULONGLONG_T)(PDWORD_PTR*)ppdwNames) + 4);
         }
 
         bRet = true;
